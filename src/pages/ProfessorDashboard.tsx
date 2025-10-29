@@ -19,6 +19,8 @@ const ProfessorDashboard = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [lastCreateTime, setLastCreateTime] = useState<number>(0);
+  const COOLDOWN_MS = 10000; // 10 second cooldown between requests
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -65,6 +67,16 @@ const ProfessorDashboard = () => {
 
   const handleCreateQuiz = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check cooldown
+    const now = Date.now();
+    const timeSinceLastCreate = now - lastCreateTime;
+    if (timeSinceLastCreate < COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((COOLDOWN_MS - timeSinceLastCreate) / 1000);
+      toast.error(`Please wait ${waitSeconds} more second${waitSeconds !== 1 ? 's' : ''} before creating another quiz.`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -72,8 +84,12 @@ const ProfessorDashboard = () => {
         body: { title, description, prompt },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
 
+      setLastCreateTime(now);
       toast.success("Quiz created successfully!");
       setOpen(false);
       setTitle("");
@@ -82,7 +98,29 @@ const ProfessorDashboard = () => {
       loadQuizzes();
     } catch (error: any) {
       console.error("Quiz creation error:", error);
-      toast.error(error.message || "Failed to create quiz");
+      
+      // Check for rate limiting - FunctionsHttpError doesn't expose status directly
+      // but we can check the error type and message
+      const errorMessage = error?.message || "";
+      const errorName = error?.name || "";
+      
+      if (errorName === "FunctionsHttpError" || errorMessage.includes("non-2xx status code")) {
+        toast.error("Service is temporarily busy. Please wait a moment and try again.", {
+          duration: 5000,
+        });
+      } else if (errorMessage.includes("Rate limit") || errorMessage.includes("429")) {
+        toast.error("Too many requests. Please wait before creating another quiz.", {
+          duration: 5000,
+        });
+      } else if (errorMessage.includes("timeout")) {
+        toast.error("Request timed out. Please try again.", {
+          duration: 5000,
+        });
+      } else {
+        toast.error(errorMessage || "Failed to create quiz. Please try again.", {
+          duration: 5000,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -157,8 +195,13 @@ const ProfessorDashboard = () => {
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Generating..." : "Generate Quiz"}
+                  {loading ? "Generating Quiz... This may take a moment" : "Generate Quiz"}
                 </Button>
+                {lastCreateTime > 0 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Please wait at least 10 seconds between quiz creations to avoid rate limits
+                  </p>
+                )}
               </form>
             </DialogContent>
           </Dialog>

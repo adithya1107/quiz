@@ -40,22 +40,46 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
+      // Validate inputs
+      if (password.length < 6) {
+        throw new Error("Password must be at least 6 characters");
+      }
+
+      if (!fullName.trim()) {
+        throw new Error("Please enter your full name");
+      }
+
+      console.log("Attempting signup with:", { email, role, fullName });
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
         password,
         options: {
           data: {
-            full_name: fullName,
+            full_name: fullName.trim(),
             role: role,
           },
           emailRedirectTo: `${window.location.origin}/`,
         },
       });
 
-      if (error) throw error;
-      toast.success("Account created successfully!");
+      if (error) {
+        console.error("Signup error:", error);
+        throw error;
+      }
+
+      console.log("Signup successful:", data);
+      
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        toast.success("Check your email to confirm your account!");
+      } else {
+        toast.success("Account created successfully!");
+      }
+      
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Signup error details:", error);
+      toast.error(error.message || "An error occurred during signup");
     } finally {
       setLoading(false);
     }
@@ -66,15 +90,24 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      console.log("Attempting signin with:", email);
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Signin error:", error);
+        throw error;
+      }
+
+      console.log("Signin successful:", data);
       toast.success("Signed in successfully!");
+      
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Signin error details:", error);
+      toast.error(error.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
@@ -108,6 +141,7 @@ const Auth = () => {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -119,6 +153,7 @@ const Auth = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
                     required
                   />
                 </div>
@@ -138,6 +173,7 @@ const Auth = () => {
                     placeholder="John Doe"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    autoComplete="name"
                     required
                   />
                 </div>
@@ -149,6 +185,7 @@ const Auth = () => {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -160,8 +197,13 @@ const Auth = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    minLength={6}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 6 characters
+                  </p>
                 </div>
                 <div className="space-y-3">
                   <Label>I am a...</Label>

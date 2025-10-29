@@ -21,9 +21,9 @@ serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableApiKey) {
-      console.error("LOVABLE_API_KEY not found");
+    const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!geminiApiKey) {
+      console.error("GEMINI_API_KEY not found");
       return new Response(
         JSON.stringify({ error: "API key not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -56,69 +56,48 @@ serve(async (req) => {
     console.log("Generating quiz for user:", user.id);
     console.log("Prompt:", prompt);
 
-    console.log("Calling Lovable AI...");
+    console.log("Calling Google Gemini API...");
     const aiResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${lovableApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { 
-              role: "system", 
-              content: "You are a quiz generator that creates educational multiple-choice questions." 
-            },
-            { 
-              role: "user", 
-              content: `Generate a quiz with 5 multiple-choice questions based on: ${prompt}\n\nEach question should have 4 options and one correct answer.` 
-            }
-          ],
-          tools: [{
-            type: "function",
-            function: {
-              name: "generate_quiz",
-              description: "Generate quiz questions with multiple choice options",
-              parameters: {
-                type: "object",
-                properties: {
-                  questions: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        question: { type: "string" },
-                        options: {
-                          type: "array",
-                          items: { type: "string" },
-                          minItems: 4,
-                          maxItems: 4
-                        },
-                        correct_answer: { type: "string" }
-                      },
-                      required: ["question", "options", "correct_answer"],
-                      additionalProperties: false
-                    },
-                    minItems: 5,
-                    maxItems: 5
-                  }
-                },
-                required: ["questions"],
-                additionalProperties: false
-              }
-            }
+          contents: [{
+            parts: [{
+              text: `You are a quiz generator. Generate a quiz with exactly 5 multiple-choice questions based on: ${prompt}
+
+Each question must have exactly 4 options and one correct answer.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+      "correct_answer": "The exact text of the correct option"
+    }
+  ]
+}
+
+Generate 5 questions now.`
+            }]
           }],
-          tool_choice: { type: "function", function: { name: "generate_quiz" } }
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          }
         }),
       }
     );
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("Lovable AI error:", aiResponse.status, errorText);
+      console.error("Gemini API error:", aiResponse.status, errorText);
       
       if (aiResponse.status === 429) {
         return new Response(
@@ -127,40 +106,57 @@ serve(async (req) => {
         );
       }
       
-      if (aiResponse.status === 402) {
+      if (aiResponse.status === 403) {
         return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to your workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Invalid API key or API not enabled." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       
       return new Response(
         JSON.stringify({ 
           error: "Failed to generate quiz content", 
-          details: `AI API returned ${aiResponse.status}: ${errorText}`
+          details: `Gemini API returned ${aiResponse.status}: ${errorText}`
         }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const aiData = await aiResponse.json();
-    console.log("AI response received");
+    console.log("Gemini response received");
 
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall || toolCall.function.name !== "generate_quiz") {
-      console.error("No tool call in AI response");
+    const generatedText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!generatedText) {
+      console.error("No content in Gemini response");
       return new Response(
         JSON.stringify({ error: "Invalid AI response format" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const quizData = JSON.parse(toolCall.function.arguments);
+    // Extract JSON from the response (in case it's wrapped in markdown code blocks)
+    let jsonText = generatedText.trim();
+    if (jsonText.startsWith("```json")) {
+      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?$/g, "");
+    } else if (jsonText.startsWith("```")) {
+      jsonText = jsonText.replace(/```\n?/g, "").replace(/```\n?$/g, "");
+    }
+
+    const quizData = JSON.parse(jsonText);
     
     if (!quizData.questions || !Array.isArray(quizData.questions)) {
       console.error("Invalid quiz data structure");
       return new Response(
         JSON.stringify({ error: "Invalid quiz structure" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate quiz data
+    if (quizData.questions.length !== 5) {
+      console.error("Quiz must have exactly 5 questions");
+      return new Response(
+        JSON.stringify({ error: "Invalid number of questions generated" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
