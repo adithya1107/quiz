@@ -9,6 +9,8 @@ import ProfessorDashboard from "./pages/ProfessorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import QuizTaking from "./pages/QuizTaking";
 import Leaderboard from "./pages/Leaderboard";
+import QuizEdit from "./pages/QuizEdit";
+import QuizReview from "./pages/QuizReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/quiz/:quizId" element={<QuizTaking />} />
           <Route path="/quiz/:quizId/leaderboard" element={<Leaderboard />} />
+          <Route path="/quiz/:quizId/edit" element={<QuizEdit />} />
+          <Route path="/quiz/:quizId/review" element={<QuizReview />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

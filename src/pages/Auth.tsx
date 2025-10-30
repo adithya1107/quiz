@@ -1,3 +1,4 @@
+// Auth.tsx - Enhanced Version with Improved Styling
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +41,6 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Validate inputs
       if (password.length < 6) {
         throw new Error("Password must be at least 6 characters");
       }
@@ -48,8 +48,6 @@ const Auth = () => {
       if (!fullName.trim()) {
         throw new Error("Please enter your full name");
       }
-
-      console.log("Attempting signup with:", { email, role, fullName });
 
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
@@ -63,14 +61,8 @@ const Auth = () => {
         },
       });
 
-      if (error) {
-        console.error("Signup error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("Signup successful:", data);
-      
-      // Check if email confirmation is required
       if (data.user && !data.session) {
         toast.success("Check your email to confirm your account!");
       } else {
@@ -78,7 +70,6 @@ const Auth = () => {
       }
       
     } catch (error: any) {
-      console.error("Signup error details:", error);
       toast.error(error.message || "An error occurred during signup");
     } finally {
       setLoading(false);
@@ -90,23 +81,15 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      console.log("Attempting signin with:", email);
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
-      if (error) {
-        console.error("Signin error:", error);
-        throw error;
-      }
-
-      console.log("Signin successful:", data);
+      if (error) throw error;
       toast.success("Signed in successfully!");
       
     } catch (error: any) {
-      console.error("Signin error details:", error);
       toast.error(error.message || "Invalid email or password");
     } finally {
       setLoading(false);
@@ -114,27 +97,47 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <Card className="w-full max-w-md shadow-strong">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-gradient-to-br from-primary/10 via-background to-accent/10">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-secondary/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
+
+      <Card className="w-full max-w-md shadow-colored-xl relative backdrop-blur-sm bg-card/95 border-2 border-primary/10 animate-fade-in">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="mx-auto w-20 h-20 rounded-3xl gradient-primary flex items-center justify-center mb-3 shadow-colored-lg animate-float">
+            <span className="text-4xl">🎓</span>
+          </div>
+          <CardTitle className="text-5xl font-bold text-gradient-hero">
             QuizMaster AI
           </CardTitle>
-          <CardDescription className="text-center">
-            Create and take AI-powered quizzes
+          <CardDescription className="text-base text-muted-foreground">
+            Create and take AI-powered quizzes with ease
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 p-1.5 bg-muted/50 mb-8">
+              <TabsTrigger 
+                value="signin" 
+                className="data-[state=active]:shadow-colored-md transition-all duration-300 data-[state=active]:scale-105"
+              >
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger 
+                value="signup"
+                className="data-[state=active]:shadow-colored-md transition-all duration-300 data-[state=active]:scale-105"
+              >
+                Sign Up
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
+            <TabsContent value="signin" className="mt-0">
+              <form onSubmit={handleSignIn} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-email" className="text-sm font-semibold">Email</Label>
                   <Input
                     id="signin-email"
                     type="email"
@@ -142,11 +145,12 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
+                    className="h-12 transition-all duration-300 focus:shadow-colored-sm border-2 focus:border-primary/50"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
+                  <Label htmlFor="signin-password" className="text-sm font-semibold">Password</Label>
                   <Input
                     id="signin-password"
                     type="password"
@@ -154,19 +158,24 @@ const Auth = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
+                    className="h-12 transition-all duration-300 focus:shadow-colored-sm border-2 focus:border-primary/50"
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading} variant="hero">
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 shadow-colored-md hover:shadow-colored-xl transition-all duration-300 gradient-primary hover:scale-105 font-semibold text-base" 
+                  disabled={loading}
+                >
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </TabsContent>
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
+            <TabsContent value="signup" className="mt-0">
+              <form onSubmit={handleSignUp} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="fullname">Full Name</Label>
+                  <Label htmlFor="fullname" className="text-sm font-semibold">Full Name</Label>
                   <Input
                     id="fullname"
                     type="text"
@@ -174,11 +183,12 @@ const Auth = () => {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     autoComplete="name"
+                    className="h-12 transition-all duration-300 focus:shadow-colored-sm border-2 focus:border-primary/50"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email" className="text-sm font-semibold">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -186,11 +196,12 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
+                    className="h-12 transition-all duration-300 focus:shadow-colored-sm border-2 focus:border-primary/50"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password" className="text-sm font-semibold">Password</Label>
                   <Input
                     id="signup-password"
                     type="password"
@@ -199,26 +210,37 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
                     minLength={6}
+                    className="h-12 transition-all duration-300 focus:shadow-colored-sm border-2 focus:border-primary/50"
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground pl-1">
                     Must be at least 6 characters
                   </p>
                 </div>
                 <div className="space-y-3">
-                  <Label>I am a...</Label>
+                  <Label className="text-sm font-semibold">I am a...</Label>
                   <RadioGroup value={role} onValueChange={(value) => setRole(value as "student" | "professor")}>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3 p-4 rounded-xl border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:shadow-colored-sm">
                       <RadioGroupItem value="student" id="student" />
-                      <Label htmlFor="student" className="cursor-pointer">Student</Label>
+                      <Label htmlFor="student" className="cursor-pointer flex-1 font-medium text-base flex items-center gap-2">
+                        <span className="text-2xl">🎓</span>
+                        Student
+                      </Label>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3 p-4 rounded-xl border-2 hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:shadow-colored-sm">
                       <RadioGroupItem value="professor" id="professor" />
-                      <Label htmlFor="professor" className="cursor-pointer">Professor</Label>
+                      <Label htmlFor="professor" className="cursor-pointer flex-1 font-medium text-base flex items-center gap-2">
+                        <span className="text-2xl">👨‍🏫</span>
+                        Professor
+                      </Label>
                     </div>
                   </RadioGroup>
                 </div>
-                <Button type="submit" className="w-full" disabled={loading} variant="hero">
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 shadow-colored-md hover:shadow-colored-xl transition-all duration-300 gradient-primary hover:scale-105 font-semibold text-base" 
+                  disabled={loading}
+                >
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
               </form>
